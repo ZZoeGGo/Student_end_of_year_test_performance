@@ -1,0 +1,110 @@
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Q1 Linear mixed models
+
+```{r, echo=FALSE, eval=TRUE}
+library(tidyverse) 
+install.packages("Pmisc", repos = "http://R-Forge.R-project.org", type = "source")
+
+s <- read.csv('school.csv')
+
+```
+
+## Question of interest: Which variables are associated with Grade 8 students’ scores on an end-of-year language test?
+
+
+## (a)
+I concern about the independence assumption for linear regression with this data. The schools that students attended are different, as for some schools with higher requirement on verbal ability, the verbal IQ of students might be higher than the other schools. It seems unreasonable to say students from the same school can be considered independent.
+
+## (b)
+
+A scatter plot to examine the relationship between verbal IQ scores and end-of-year language scores is attaching below:
+
+```{r}
+ggplot(s, aes(x = iq, y = test)) +
+    geom_point(alpha = 0.5) +
+    geom_smooth(method = "lm", se = FALSE) +
+    theme_classic()
+```
+
+From the plot, we see that the verbal IQ is associated with the Grade 8 students end-of-year language scores, in specific verbal IQ has a positive effect on the Grade 8 student language scores.
+
+## (c)
+I added two variables: mean_ses(mean of ses for each school) and mean_iq(mean of iq for each school) in the following code.
+```{r}
+s <- s %>% 
+    group_by(school) %>% 
+    mutate(mean_ses = mean(ses), mean_iq = mean(iq))
+```
+
+## (d)
+
+A linear model LM is built through the code below, and the summary is shown:
+
+```{r}
+LM <- lm(test ~ iq + sex + ses + minority_status + mean_ses + mean_iq, data = s)
+summary(LM)
+confint(LM)
+```
+Our null hypothesis($H_0$) is the covariates do not have effect to the response. From the summary and confident interval table, we find that the covirates iq, sex, ses and mean_iq have significant positive effect on the test mark of the students since their estimate is possitive, p-value < 0.05 and 95% CI possitive and not contain 0, so we reject $H_0$. The covariate mean_ses shows significant negative effect since the estimate is negative and the 95% CI not include zero and appears negative, so we reject $H_0$ such that mean of ses in each school have significant negative effect on response. For covariate ses, p_value = 0.861 > 0.05 and the 95% CI includes 0, so we failed to reject $H_0$, say there are no evidence that ses have effect on the test mark of students.
+
+## (e)1: Consider the estimated standard deviations in the summary to make sure you understand the first two rows of the confint output.
+A linear mixed model LMM is fitted below with the summary and 95% CI:
+
+```{r, message=FALSE}
+library(lme4)
+LMM <- lme4::lmer(test ~ iq + sex + ses + minority_status + mean_ses + mean_iq + (1|school), data = s) 
+summary(LMM)
+confint(LMM)
+
+```
+
+
+## (f)
+
+Basing on the summaries of two models from 1d and 1e, the coefficients of the same fixed effect in both models are similar to each others. The slight difference between the linear model(1d) and the linear mixed model(1e) will caused by the random effect in linear mixed model.
+
+
+## (g)
+```{r}
+ss <- lme4::ranef(LMM, condVar = TRUE)
+re <- as.data.frame(ss)
+re %>%
+  ggplot(aes(x=grp, y=condval, ymin=condval - 2*condsd, ymax=condval + 2*condsd))+
+  geom_point() + geom_errorbar() + coord_flip()
+```
+
+## (h)Write a short paragraph summarising, what you have learned from this analysis. Focus on answering the question of interest. Remember that interpreting confidence intervals is preferred to point estimatesandmakesureanydiscussionofp-valuesandconfidenceintervals are statistically correct. Also mention what proportion of the residual variation, after fitting the fixed effects, the differences between schools accounts for. 
+
+In this analysis, I have learned why and how to build a linear mixed model, and compare the linear mixed model and linear model with the same fixed effect. we aiming to find which variables are associated with Grade 8 students’ scores on an end-of-year language test, 
+
+
+
+
+
+# Q2 Generalised linear mixed models 
+
+## (a) 
+
+The model to smokeModelT data is generalized linear mixed model, with logit link function so it is the logit of the mean in the second line.
+
+\begin{align*}
+Y_{ijk} \sim & \text{Binomial}(\alpha, \beta)\\
+logit(\mu_{ijk}) = & X_{ij} \beta + A_i + B_{ij}\\
+A_i \sim & \text{N}(0, \sigma^2_A)  \\
+B_{ij} \sim & \text{N}(0, \sigma^2_B) 
+\end{align*}
+
+$\mu_{ijk}$ is the predicted possibility of ever used chewing tobacco, snuff, or dip for the $k^{th}$ student in the $j^{th}$ school of the $i^{th}$ state.
+
+The difference between the model above and generalized linear model is the generalized linear mixed model has random effect($A_i$ in the model above) on the response since the Y(response) is considered dependent while the response in generalized linear model is considered independent so no random effect involved.
+
+## (b)
+
+The response variable has 2 level(True or False) and the model follows Binomial distribution, so use a logit link function is more approprite for this dataset than a linear mixed model which directly relate the effect of covirates to the response variable.
+
+
+## (c) 
+We discuss about the hypothesis that state-level differences in chewing tobacco usage amongst high school students are much larger than differences between schools within a state. From the Table 3, we see the standard deviation of the schools within a state is 0.75, which is much larger than the standard deviation between the state(0.32), so the differences of schools within a state is much larger than the state-level differences in in chewing tobacco usage amongst high school students, and we reject the hypothesis. For the ones interest in identifying locations with many tobacco chewers, it would be important to find indivisual schools with higher smoking rate in each states rather than targeting those states where chewing is most common.
